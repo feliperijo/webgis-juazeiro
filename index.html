@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>WebGIS Juazeiro do Norte</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body { margin: 0; padding: 0; }
+    #map { width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const SUPABASE_URL = "https://gtmfmdtamrajlepaxxvp.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_2Bc4GXkDeDO7R5AzSCcklA_jDalroYd";
+
+    const map = L.map('map').setView([-7.2276, -39.3161], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    let overlays = {};
+
+    async function carregarCamadaDireta(nomeTabela, cor, nomeExibicao) {
+      const url = `${SUPABASE_URL}/rest/v1/${nomeTabela}?select=*`;
+      
+      try {
+        const response = await fetch(url, {
+          headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+        });
+        
+        if (!response.ok) throw new Error(`Erro na tabela ${nomeTabela}`);
+        
+        const dados = await response.json();
+        
+        const grupo = L.geoJSON(null, {
+            style: { color: cor, weight: 2, fillOpacity: 0.3 },
+            onEachFeature: function (feature, layer) {
+                if (feature.properties) {
+                    let popupContent = `<b>${nomeExibicao}</b><br>`;
+                    for (let key in feature.properties) {
+                        if (key !== 'geom' && key !== 'id') {
+                            popupContent += `<b>${key}:</b> ${feature.properties[key]}<br>`;
+                        }
+                    }
+                    layer.bindPopup(popupContent);
+                }
+            }
+        });
+
+        dados.forEach(item => {
+            if(item.geom) grupo.addData(item.geom);
+        });
+
+        grupo.addTo(map);
+        overlays[nomeExibicao] = grupo;
+        
+        if (window.layerControl) map.removeControl(window.layerControl);
+        window.layerControl = L.control.layers(null, overlays).addTo(map);
+
+      } catch (e) { console.error(e); }
+    }
+
+    const listaDeCamadas = [
+        ['bairros_jua', '#9c27b0', 'Bairros'],
+        ['escolas_jua', '#0000FF', 'Escolas'],
+        ['posto_saude_jua', '#FF0000', 'Postos de Saúde'],
+        ['redamedia', '#FF9800', 'Renda Média'],
+        ['ruas_jua', '#607d8b', 'Ruas'],
+        ['v_escolas_buffer_300m', '#0000FF', 'Buffer Escolas (300m)'],
+        ['v_postos_buffer_500m', '#FF0000', 'Buffer Postos (500m)']
+    ];
+
+    listaDeCamadas.forEach(c => {
+        carregarCamadaDireta(c[0], c[1], c[2]);
+    });
+  </script>
+</body>
+</html>
