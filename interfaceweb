@@ -1,2 +1,4 @@
-vite.config.js
-
+{
+  "buildCommand": null,
+  "outputDirectory": "./"
+}
